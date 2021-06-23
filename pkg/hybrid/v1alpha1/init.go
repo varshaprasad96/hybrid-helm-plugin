@@ -15,6 +15,8 @@
 package v1alpha1
 
 import (
+	"github.com/spf13/pflag"
+	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
@@ -26,6 +28,7 @@ const (
 	kindFlag    = "kind"
 )
 
+// TODO: Implement the apiSubcommand.
 type initSubcommand struct {
 	config config.Config
 
@@ -40,6 +43,22 @@ type initSubcommand struct {
 
 var _ plugin.InitSubcommand = &initSubcommand{}
 
-func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
+// TODO: bind the same set of flags to the apiSubcommand
+func (p *initSubcommand) BindFlags(fs *pflag.FlagSet) {
+	fs.SortFlags = false
+	fs.StringVar(&p.group, groupFlag, "", "resource Group")
+	fs.StringVar(&p.version, versionFlag, "", "resource Version")
+	fs.StringVar(&p.kind, kindFlag, "", "resource Kind")
+}
+
+func (p *initSubcommand) InjectConfig(c config.Config) error {
+	p.config = c
 	return nil
+}
+
+func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
+	// TODO: add customizations to config files, as done in helm operator plugin
+	scaffolder := scaffolds.NewInitScaffolder(p.config)
+	scaffolder.InjectFS(fs)
+	return scaffolder.Scaffold()
 }
