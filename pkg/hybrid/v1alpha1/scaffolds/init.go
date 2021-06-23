@@ -18,6 +18,7 @@ limitations under the License.
 package scaffolds
 
 import (
+	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
@@ -53,5 +54,5 @@ func (s *initScaffolder) Scaffold() error {
 		machinery.WithConfig(s.config),
 	)
 
-	return scaffold.Execute()
+	return scaffold.Execute(&templates.GitIgnore{})
 }
