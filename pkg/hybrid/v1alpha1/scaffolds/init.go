@@ -54,5 +54,6 @@ func (s *initScaffolder) Scaffold() error {
 		machinery.WithConfig(s.config),
 	)
 
-	return scaffold.Execute(&templates.GitIgnore{})
+	return scaffold.Execute(&templates.GitIgnore{},
+		&templates.Watches{})
 }

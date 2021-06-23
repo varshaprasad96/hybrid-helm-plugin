@@ -15,6 +15,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	"github.com/spf13/pflag"
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
@@ -43,6 +45,23 @@ type initSubcommand struct {
 
 var _ plugin.InitSubcommand = &initSubcommand{}
 
+// UpdateContext define plugin context
+func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *plugin.SubcommandMetadata) {
+	subcmdMeta.Description = `Initialize a new Helm-based operator project.
+
+Writes the following files:
+...
+`
+	subcmdMeta.Examples = fmt.Sprintf(`  $ %[1]s init --plugins=%[2]s \
+      --domain=example.com \
+      --group=apps \
+      --version=v1alpha1 \
+      --kind=AppService
+`, cliMeta.CommandName, pluginKey)
+
+	p.commandName = cliMeta.CommandName
+}
+
 // TODO: bind the same set of flags to the apiSubcommand
 func (p *initSubcommand) BindFlags(fs *pflag.FlagSet) {
 	fs.SortFlags = false
@@ -61,4 +80,8 @@ func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 	scaffolder := scaffolds.NewInitScaffolder(p.config)
 	scaffolder.InjectFS(fs)
 	return scaffolder.Scaffold()
+}
+
+func (p *initSubcommand) PostScaffold() error {
+	return nil
 }
