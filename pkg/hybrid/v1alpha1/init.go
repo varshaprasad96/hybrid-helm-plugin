@@ -22,12 +22,8 @@ import (
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
-)
-
-const (
-	groupFlag   = "group"
-	versionFlag = "version"
-	kindFlag    = "kind"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang"
 )
 
 // TODO: Implement the apiSubcommand.
@@ -37,15 +33,18 @@ type initSubcommand struct {
 	// For help text
 	commandName string
 
-	// Flags
-	group   string
-	version string
-	kind    string
+	// boilerplate options
+	license string
+	owner   string
+
+	// go config options
+	repo string
 }
 
 var _ plugin.InitSubcommand = &initSubcommand{}
 
 // UpdateContext define plugin context
+// TODO: modify this
 func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *plugin.SubcommandMetadata) {
 	subcmdMeta.Description = `Initialize a new Helm-based operator project.
 
@@ -65,21 +64,53 @@ Writes the following files:
 // TODO: bind the same set of flags to the apiSubcommand
 func (p *initSubcommand) BindFlags(fs *pflag.FlagSet) {
 	fs.SortFlags = false
-	fs.StringVar(&p.group, groupFlag, "", "resource Group")
-	fs.StringVar(&p.version, versionFlag, "", "resource Version")
-	fs.StringVar(&p.kind, kindFlag, "", "resource Kind")
+
+	// project args
+	fs.StringVar(&p.repo, "repo", "", "name to use for go module (e.g., github.com/user/repo), "+
+		"defaults to the go package of the current working directory.")
+
+	// boilerplate args
+	fs.StringVar(&p.license, "license", "apache2",
+		"license to use to boilerplate, may be one of 'apache2', 'none'")
+	fs.StringVar(&p.owner, "owner", "", "owner to add to the copyright")
+
 }
 
 func (p *initSubcommand) InjectConfig(c config.Config) error {
 	p.config = c
+
+	// Try to guess repository if flag is not set
+	if p.repo == "" {
+		repoPath, err := golang.FindCurrentRepo()
+		if err != nil {
+			return fmt.Errorf("error finding current repository: %v", err)
+		}
+		p.repo = repoPath
+	}
+
+	if err := p.config.SetRepository(p.repo); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 	// TODO: add customizations to config files, as done in helm operator plugin
-	scaffolder := scaffolds.NewInitScaffolder(p.config)
+	scaffolder := scaffolds.NewInitScaffolder(p.config, p.license, p.owner)
 	scaffolder.InjectFS(fs)
-	return scaffolder.Scaffold()
+	err := scaffolder.Scaffold()
+	if err != nil {
+		return err
+	}
+
+	// Ensure that we are pinning the controller-runtime version
+	// xref: https://github.com/kubernetes-sigs/kubebuilder/issues/997
+	err = util.RunCmd("Get controller runtime", "go", "get",
+		"sigs.k8s.io/controller-runtime@"+scaffolds.ControllerRuntimeVersion)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *initSubcommand) PostScaffold() error {
