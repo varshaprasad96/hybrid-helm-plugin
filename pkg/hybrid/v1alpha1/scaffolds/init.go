@@ -98,6 +98,7 @@ func (s *initScaffolder) Scaffold() error {
 
 	return scaffold.Execute(
 		&templates.Main{},
+		&templates.GoMod{ControllerRuntimeVersion: ControllerRuntimeVersion},
 		&templates.GitIgnore{},
 		&templates.Watches{})
 }
