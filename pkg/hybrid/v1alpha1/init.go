@@ -46,16 +46,18 @@ var _ plugin.InitSubcommand = &initSubcommand{}
 // UpdateContext define plugin context
 // TODO: modify this
 func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *plugin.SubcommandMetadata) {
-	subcmdMeta.Description = `Initialize a new Helm-based operator project.
+	subcmdMeta.Description = `Initialize a new project including the following files:
+	- a "go.mod" with project dependencies
+	- a "PROJECT" file that stores project configuration
+	- a "Makefile" with several useful make targets for the project
+	- several YAML files for project deployment under the "config" directory
+	- a "main.go" file that creates the manager that will run the project controllers
+  `
+	subcmdMeta.Examples = fmt.Sprintf(`  # Initialize a new project with your domain and name in copyright
+	$ %[1]s init --plugins=%[2]s --domain=example.com --owner "Your Name"
 
-Writes the following files:
-...
-`
-	subcmdMeta.Examples = fmt.Sprintf(`  $ %[1]s init --plugins=%[2]s \
-      --domain=example.com \
-      --group=apps \
-      --version=v1alpha1 \
-      --kind=AppService
+	# Initialize a new project defining a specific project version
+	%[1]s init --plugins=%[2]s --project-version 3
 `, cliMeta.CommandName, pluginKey)
 
 	p.commandName = cliMeta.CommandName
@@ -94,6 +96,8 @@ func (p *initSubcommand) InjectConfig(c config.Config) error {
 	return nil
 }
 
+// TODO: Pre-scaffold check to verify if the right Go version and directory is used
+// needs to be added from Kubebuilder.
 func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 	// TODO: add customizations to config files, as done in helm operator plugin
 	scaffolder := scaffolds.NewInitScaffolder(p.config, p.license, p.owner)
@@ -114,5 +118,10 @@ func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 }
 
 func (p *initSubcommand) PostScaffold() error {
+	err := util.RunCmd("Update dependencies", "go", "mod", "tidy")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates"
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates/hack"
+	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates/rbac"
+	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/version"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
@@ -33,8 +35,13 @@ const (
 	ControllerRuntimeVersion = "v0.8.3"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
 	ControllerToolsVersion = "v0.5.0"
+	// KustomizeVersion is the kubernetes-sigs/kustomize version to be used in the project
+	KustomizeVersion = "v3.8.7"
+
+	imageName = "controller:latest"
 )
 
+var hybridOperatorVersion = "0.1.0"
 var _ plugins.Scaffolder = &initScaffolder{}
 
 type initScaffolder struct {
@@ -100,5 +107,20 @@ func (s *initScaffolder) Scaffold() error {
 		&templates.Main{},
 		&templates.GoMod{ControllerRuntimeVersion: ControllerRuntimeVersion},
 		&templates.GitIgnore{},
+		&rbac.ManagerRole{},
+		&templates.Makefile{
+			Image:                    imageName,
+			KustomizeVersion:         KustomizeVersion,
+			HybridOperatorVersion:    hybridOperatorVersion,
+			ControllerToolsVersion:   ControllerToolsVersion,
+			ControllerRuntimeVersion: ControllerRuntimeVersion,
+		},
 		&templates.Watches{})
+}
+
+func mustGetScaffoldVersion() string {
+	if version.ScaffoldVersion == "" || version.ScaffoldVersion == version.Unknown {
+		panic("helm-operator scaffold version is unknown; it must be set during build or by importing this plugin via go modules")
+	}
+	return version.ScaffoldVersion
 }
