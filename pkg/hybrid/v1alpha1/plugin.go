@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
 )
 
-const pluginName = "hybrid.helm.sdk.operatorframework.io"
+const pluginName = "hybrid.sdk.operatorframework.io"
 
 var (
 	pluginVersion            = plugin.Version{Number: 1, Stage: stage.Alpha}
@@ -31,6 +31,7 @@ var (
 
 var (
 	_ plugin.Plugin = Plugin{}
+	_ plugin.Init   = Plugin{}
 )
 
 type Plugin struct {

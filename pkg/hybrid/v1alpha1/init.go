@@ -16,9 +16,12 @@ package v1alpha1
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/pflag"
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds"
+
+	sdkutil "github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/util"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
@@ -44,7 +47,6 @@ type initSubcommand struct {
 var _ plugin.InitSubcommand = &initSubcommand{}
 
 // UpdateContext define plugin context
-// TODO: modify this
 func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *plugin.SubcommandMetadata) {
 	subcmdMeta.Description = `Initialize a new project including the following files:
 	- a "go.mod" with project dependencies
@@ -100,6 +102,10 @@ func (p *initSubcommand) InjectConfig(c config.Config) error {
 // needs to be added from Kubebuilder.
 func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 	// TODO: add customizations to config files, as done in helm operator plugin
+	// if err := addInitCustomizations(p.config.GetProjectName()); err != nil {
+	// 	return fmt.Errorf("error updating init manifests: %s", err)
+	// }
+
 	scaffolder := scaffolds.NewInitScaffolder(p.config, p.license, p.owner)
 	scaffolder.InjectFS(fs)
 	err := scaffolder.Scaffold()
@@ -121,6 +127,61 @@ func (p *initSubcommand) PostScaffold() error {
 	err := util.RunCmd("Update dependencies", "go", "mod", "tidy")
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// addInitCustomizations will perform the required customizations for this plugin on the common base
+func addInitCustomizations(projectName string) error {
+	managerFile := filepath.Join("config", "manager", "manager.yaml")
+
+	// todo: we ought to use afero instead. Replace this methods to insert/update
+	// by https://github.com/kubernetes-sigs/kubebuilder/pull/2119
+
+	// Add leader election arg in config/manager/manager.yaml and in config/default/manager_auth_proxy_patch.yaml
+	err := sdkutil.InsertCode(managerFile,
+		"--leader-elect",
+		fmt.Sprintf("\n        - --leader-election-id=%s", projectName))
+	if err != nil {
+		return err
+	}
+	err = sdkutil.InsertCode(filepath.Join("config", "default", "manager_auth_proxy_patch.yaml"),
+		"- \"--leader-elect\"",
+		fmt.Sprintf("\n        - \"--leader-election-id=%s\"", projectName))
+	if err != nil {
+		return err
+	}
+
+	// Increase the default memory required.
+	err = sdkutil.ReplaceInFile(managerFile, "memory: 30Mi", "memory: 90Mi")
+	if err != nil {
+		return err
+	}
+	err = sdkutil.ReplaceInFile(managerFile, "memory: 20Mi", "memory: 60Mi")
+	if err != nil {
+		return err
+	}
+
+	// Remove the webhook option for the componentConfig since webhooks are not supported by helm
+	err = sdkutil.ReplaceInFile(filepath.Join("config", "manager", "controller_manager_config.yaml"),
+		"webhook:\n  port: 9443", "")
+	if err != nil {
+		return err
+	}
+
+	// Remove the call to the command as manager. Helm has not been exposing this entrypoint
+	// todo: provide the manager entrypoint for helm and then remove it
+	const command = `command:
+        - /manager
+        `
+	err = sdkutil.ReplaceInFile(managerFile, command, "")
+	if err != nil {
+		return err
+	}
+
+	if err := sdkutil.UpdateKustomizationsInit(); err != nil {
+		return fmt.Errorf("error updating kustomization.yaml files: %v", err)
 	}
 
 	return nil

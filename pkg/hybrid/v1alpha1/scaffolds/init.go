@@ -24,7 +24,6 @@ import (
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates"
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates/hack"
 	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/hybrid/v1alpha1/scaffolds/internal/templates/rbac"
-	"github.com/varshaprasad96/hybrid-helm-plugin/pkg/version"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
@@ -116,11 +115,4 @@ func (s *initScaffolder) Scaffold() error {
 			ControllerRuntimeVersion: ControllerRuntimeVersion,
 		},
 		&templates.Watches{})
-}
-
-func mustGetScaffoldVersion() string {
-	if version.ScaffoldVersion == "" || version.ScaffoldVersion == version.Unknown {
-		panic("helm-operator scaffold version is unknown; it must be set during build or by importing this plugin via go modules")
-	}
-	return version.ScaffoldVersion
 }
